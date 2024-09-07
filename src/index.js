@@ -1,105 +1,79 @@
-import * as three from 'three';
-import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import * as three from 'three'; // Import the three.js module
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js'; // Import PointerLockControls
 import * as CANNON from 'cannon-es'; // Import Cannon.js
 
-// Initialize the scene
-const scene = new three.Scene();
+document.addEventListener('DOMContentLoaded', function () {
+  const resumeButton = document.getElementById('resumeButton');
+  if (resumeButton) {
+    resumeButton.onclick = resumeGame;
+  } else {
+    console.error("Resume button not found!");
+  }
+});
 
-// Enable shadow maps for better lighting and realism
+function resumeGame() {
+  controls.lock();
+}
+
+const scene = new three.Scene();
 const renderer = new three.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;  // Enable shadows
-renderer.shadowMap.type = three.PCFSoftShadowMap;  // Use soft shadows
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = three.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
-// Create a camera
 const camera = new three.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 1.8, 5); // Adjusted height for better player perspective
+camera.position.set(0, 1.8, 5);
 
-// PointerLock Controls for Mouse Look
 const controls = new PointerLockControls(camera, document.body);
 document.body.addEventListener('click', () => controls.lock());
 controls.addEventListener('lock', () => document.getElementById('menu').style.display = 'none');
 controls.addEventListener('unlock', () => document.getElementById('menu').style.display = 'block');
 
-// Handle window resize
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 });
 
-// Physics setup with Cannon.js
 const world = new CANNON.World();
-world.gravity.set(0, -9.82, 0); // Gravity pointing downwards
-world.broadphase = new CANNON.NaiveBroadphase(); // Broadphase for optimized collision detection
-world.solver.iterations = 10; // Increase solver iterations for more accurate physics
+world.gravity.set(0, -9.82, 0);
+world.broadphase = new CANNON.NaiveBroadphase();
+world.solver.iterations = 10;
 
-// Reduce physics step to improve collision detection
-const fixedTimeStep = 1 / 120;  // 120 Hz for better collision detection
-const maxSubSteps = 3;  // Max sub-steps to avoid tunneling
+const fixedTimeStep = 1 / 120;
+const maxSubSteps = 3;
 
-// Create the ground physics body
 const groundBody = new CANNON.Body({
-  type: CANNON.Body.STATIC, // Doesn't move
+  type: CANNON.Body.STATIC,
   shape: new CANNON.Plane(),
 });
-groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Rotate ground to lie flat
+groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
 world.addBody(groundBody);
 
-// Load textures for the ground
 const textureLoader = new three.TextureLoader();
 const groundTexture = textureLoader.load('https://threejsfundamentals.org/threejs/resources/images/checker.png');
 groundTexture.wrapS = groundTexture.wrapT = three.RepeatWrapping;
 groundTexture.repeat.set(10, 10);
 
-// Create the ground with a basic PBR material
 const groundMaterial = new three.MeshStandardMaterial({ map: groundTexture, metalness: 0.3, roughness: 0.7 });
 const ground = new three.Mesh(new three.PlaneGeometry(50, 50), groundMaterial);
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Wall textures from Poly Haven
 const wallAlbedo = textureLoader.load('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brick_wall_006/brick_wall_006_diff_2k.jpg');
-const wallNormal = textureLoader.load('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brick_wall_006/brick_wall_006_nor_gl_2k.jpg');
-const wallRoughness = textureLoader.load('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brick_wall_006/brick_wall_006_rough_2k.jpg');
-const wallDisplacement = textureLoader.load('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brick_wall_006/brick_wall_006_disp_2k.jpg');
+const wallMaterial = new three.MeshStandardMaterial({ map: wallAlbedo, metalness: 0.0, roughness: 0.8 });
 
-// Adjust texture wrapping and repeat to cover the walls correctly
-wallAlbedo.wrapS = wallAlbedo.wrapT = three.RepeatWrapping;
-wallAlbedo.repeat.set(2, 1);
-wallNormal.wrapS = wallNormal.wrapT = three.RepeatWrapping;
-wallNormal.repeat.set(2, 1);
-wallRoughness.wrapS = wallRoughness.wrapT = three.RepeatWrapping;
-wallRoughness.repeat.set(2, 1);
-wallDisplacement.wrapS = wallDisplacement.wrapT = three.RepeatWrapping;
-wallDisplacement.repeat.set(2, 1);
-
-// Create wall material using albedo, normal, roughness, and displacement maps
-const wallMaterial = new three.MeshStandardMaterial({
-  map: wallAlbedo,
-  normalMap: wallNormal,
-  roughnessMap: wallRoughness,
-  displacementMap: wallDisplacement,
-  metalness: 0.0,
-  roughness: 0.8,
-  displacementScale: 0.1,
-});
-
-// Create wall meshes and corresponding physics bodies
 const wall1 = new three.Mesh(new three.BoxGeometry(10, 5, 1), wallMaterial);
-wall1.position.set(0, 2.5, -5); // Centered and positioned vertically at half-height
+wall1.position.set(0, 2.5, -5);
 wall1.castShadow = true;
 wall1.receiveShadow = true;
 scene.add(wall1);
 
-// Create physics body for wall1
 const wall1Body = new CANNON.Body({
-  mass: 0, // Static object
-  shape: new CANNON.Box(new CANNON.Vec3(5, 2.5, 0.5)), // Half-extents of the wall
-  collisionFilterGroup: 1,  // Group for static objects
-  collisionFilterMask: 2 | 4 // Allow collision with player and movable objects
+  mass: 0,
+  shape: new CANNON.Box(new CANNON.Vec3(5, 2.5, 0.5)),
 });
 wall1Body.position.set(0, 2.5, -5);
 world.addBody(wall1Body);
@@ -111,36 +85,22 @@ wall2.castShadow = true;
 wall2.receiveShadow = true;
 scene.add(wall2);
 
-// Create physics body for wall2
 const wall2Body = new CANNON.Body({
-  mass: 0, // Static object
+  mass: 0,
   shape: new CANNON.Box(new CANNON.Vec3(5, 2.5, 0.5)),
-  collisionFilterGroup: 1, // Group for static objects
-  collisionFilterMask: 2 | 4 // Allow collision with player and movable objects
 });
 wall2Body.position.set(-5, 2.5, 0);
-wall2Body.quaternion.setFromEuler(0, Math.PI / 2, 0); // Align the body to match the visual rotation
+wall2Body.quaternion.setFromEuler(0, Math.PI / 2, 0);
 world.addBody(wall2Body);
 
-// Add Hemisphere light for ambient lighting (simulates sky lighting)
 const hemisphereLight = new three.HemisphereLight(0xddeeff, 0x0f0e0d, 1);
 scene.add(hemisphereLight);
 
-// Add directional light for sharper shadows and more definition
 const directionalLight = new three.DirectionalLight(0xffffff, 1.5);
 directionalLight.position.set(10, 20, 10);
 directionalLight.castShadow = true;
-directionalLight.shadow.mapSize.width = 2048;
-directionalLight.shadow.mapSize.height = 2048;
 scene.add(directionalLight);
 
-// Add a point light to simulate a localized dynamic light source
-const pointLight = new three.PointLight(0xffffff, 0.8, 50);
-pointLight.position.set(5, 10, 5);
-pointLight.castShadow = true;
-scene.add(pointLight);
-
-// Define a custom shader for special objects
 const customShaderMaterial = new three.ShaderMaterial({
   vertexShader: `
     varying vec3 vNormal;
@@ -160,51 +120,37 @@ const customShaderMaterial = new three.ShaderMaterial({
   `,
 });
 
-// Add Cube Object with Physics
-const customObject = new three.Mesh(new three.BoxGeometry(1, 1, 1), customShaderMaterial); // Smaller cube
+const customObject = new three.Mesh(new three.BoxGeometry(1, 1, 1), customShaderMaterial);
 customObject.position.set(0, 1, 0);
 customObject.castShadow = true;
 scene.add(customObject);
 
-// Add physics to the cube
 const customObjectBody = new CANNON.Body({
-  mass: 2, // Dynamic object
-  shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)), // Physics size matches the visual size
-  collisionFilterGroup: 4, // Group for dynamic objects
-  collisionFilterMask: 1 | 2 | 4 // Collide with walls, player, and other dynamic objects
+  mass: 2,
+  shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)),
 });
 customObjectBody.position.set(0, 1, 0);
+customObjectBody.threeMesh = customObject;  // Link the three.js mesh with the physics body
 world.addBody(customObjectBody);
 
-// Add a Sphere Object with Physics
-const sphereGeometry = new three.SphereGeometry(0.5, 32, 32); // Visual sphere geometry
-const sphereMaterial = new three.MeshStandardMaterial({ color: 0x00ff00 }); // Green material for sphere
-const sphere = new three.Mesh(sphereGeometry, sphereMaterial);
+const sphere = new three.Mesh(new three.SphereGeometry(0.5, 32, 32), new three.MeshStandardMaterial({ color: 0x00ff00 }));
 sphere.position.set(3, 1, 0);
 sphere.castShadow = true;
 scene.add(sphere);
 
-// Add physics to the sphere
 const sphereBody = new CANNON.Body({
-  mass: 2, // Dynamic object with same mass as cube
-  shape: new CANNON.Sphere(0.5), // Physics size matches the visual size of the sphere
-  collisionFilterGroup: 4, // Group for dynamic objects
-  collisionFilterMask: 1 | 2 | 4 // Collide with walls, player, and other dynamic objects
+  mass: 2,
+  shape: new CANNON.Sphere(0.5),
 });
 sphereBody.position.set(3, 1, 0);
+sphereBody.threeMesh = sphere;  // Link the three.js mesh with the physics body
 world.addBody(sphereBody);
 
-// Player movement controls with a physics body
-const playerShape = new CANNON.Sphere(1.0); // Increased player size to better fit walls and objects
 const playerBody = new CANNON.Body({ 
   mass: 5, 
-  shape: playerShape, 
-  collisionFilterGroup: 2, // Group for the player
-  collisionFilterMask: 1 | 4 // Collide with walls and dynamic objects
+  shape: new CANNON.Sphere(1), 
 });
-playerBody.position.set(0, 1, 10); // Moved player start position to avoid overlap with objects
-playerBody.linearDamping = 0.9; // Reduced sliding effect by damping linear velocity
-playerBody.angularDamping = 0.9; // Reduced rotation/slipping
+playerBody.position.set(0, 1, 10);
 world.addBody(playerBody);
 
 let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
@@ -213,12 +159,12 @@ let isSprinting = false;
 let baseMoveSpeed = 100;
 let sprintMultiplier = 2;
 let velocity = new three.Vector3();
-let direction = new three.Vector3();
+let heldObject = null; 
+const pickupDistance = 2.5;
 
-// Event listener for collisions to detect when the player is grounded
 playerBody.addEventListener('collide', (event) => {
-  if (Math.abs(event.contact.ni.y) > 0.5) { // Check if the collision normal is mostly vertical
-    canJump = true; // Allow jumping
+  if (Math.abs(event.contact.ni.y) > 0.5) {
+    canJump = true;
   }
 });
 
@@ -230,16 +176,20 @@ document.addEventListener('keydown', (event) => {
     case 'KeyS': moveBackward = true; break;
     case 'ArrowLeft':
     case 'KeyA': moveLeft = true; break;
-    case 'ArrowRight':
-    case 'KeyD': moveRight = true; break;
-    case 'Space': // Handle jump
+    case 'ArrowRight': moveRight = true; break;
+    case 'Space':
       if (canJump) {
-        playerBody.velocity.y = 10; // Apply upward velocity for jumping
-        canJump = false; // Disable further jumping until the player lands
+        playerBody.velocity.y = 10;
+        canJump = false;
       }
       break;
-    case 'ControlLeft': // Handle sprinting
-      isSprinting = true;
+    case 'ControlLeft': isSprinting = true; break;
+    case 'KeyE': 
+      if (heldObject) {
+        releaseObject();
+      } else {
+        pickUpObject();
+      }
       break;
   }
 });
@@ -252,21 +202,73 @@ document.addEventListener('keyup', (event) => {
     case 'KeyS': moveBackward = false; break;
     case 'ArrowLeft':
     case 'KeyA': moveLeft = false; break;
-    case 'ArrowRight':
-    case 'KeyD': moveRight = false; break;
-    case 'ControlLeft': // Stop sprinting when Ctrl is released
-      isSprinting = false;
-      break;
+    case 'ArrowRight': moveRight = false; break;
+    case 'ControlLeft': isSprinting = false; break;
   }
 });
 
-// Update player movement based on camera direction
+function pickUpObject() {
+  const raycaster = new three.Raycaster();
+  raycaster.setFromCamera(new three.Vector2(0, 0), camera); 
+  const intersects = raycaster.intersectObjects([customObject, sphere]);
+
+  if (intersects.length > 0) {
+    const intersectedObject = intersects[0].object;
+    let body;
+    if (intersectedObject === customObject) {
+      body = customObjectBody;
+    } else if (intersectedObject === sphere) {
+      body = sphereBody;
+    }
+
+    const distance = playerBody.position.distanceTo(intersectedObject.position);
+    
+    if (distance <= pickupDistance && body.mass > 0) {
+      heldObject = body;
+      heldObject.type = CANNON.Body.KINEMATIC;  // Set to kinematic to ignore gravity, retain volume for collisions
+      heldObject.velocity.set(0, 0, 0); // Reset velocity to prevent shaking
+      heldObject.angularVelocity.set(0, 0, 0);
+    }
+  }
+}
+
+function releaseObject() {
+  if (heldObject) {
+    heldObject.type = CANNON.Body.DYNAMIC; // Re-enable full physics when releasing
+    heldObject = null;
+  }
+}
+
+function checkForCollisions(newPosition, object) {
+  const boundingBox = new three.Box3().setFromObject(object.threeMesh);
+  const directions = [
+    new three.Vector3(1, 0, 0),  // Right
+    new three.Vector3(-1, 0, 0), // Left
+    new three.Vector3(0, 1, 0),  // Up
+    new three.Vector3(0, -1, 0), // Down
+    new three.Vector3(0, 0, 1),  // Forward
+    new three.Vector3(0, 0, -1), // Backward
+  ];
+
+  for (let direction of directions) {
+    const raycaster = new three.Raycaster();
+    const origin = boundingBox.getCenter(new three.Vector3());
+    raycaster.set(origin, direction);
+    
+    const distance = boundingBox.getSize(new three.Vector3()).length() * 0.5;
+    const intersects = raycaster.intersectObjects([wall1, wall2, ground]);
+
+    if (intersects.length > 0 && intersects[0].distance < distance) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function updatePlayerMovement(delta) {
   velocity.set(0, 0, 0);
-
   const moveSpeed = isSprinting ? baseMoveSpeed * sprintMultiplier : baseMoveSpeed;
 
-  // Get the camera's forward direction
   const forward = new three.Vector3();
   camera.getWorldDirection(forward);
   
@@ -281,28 +283,40 @@ function updatePlayerMovement(delta) {
   playerBody.velocity.x = velocity.x;
   playerBody.velocity.z = velocity.z;
 
-  // Sync the camera with the player's physics body
   camera.position.copy(playerBody.position);
-  controls.object.position.copy(playerBody.position); // Replacing getObject() with controls.object
+  controls.object.position.copy(playerBody.position);
+
+  if (heldObject) {
+    const cameraDirection = new three.Vector3();
+    camera.getWorldDirection(cameraDirection);
+    cameraDirection.normalize();
+    
+    const offset = new three.Vector3();
+    offset.copy(cameraDirection).multiplyScalar(2); // Move object 2 units in front of camera
+    offset.add(camera.position);
+
+    // Check if the object would collide with any walls/objects
+    if (!checkForCollisions(offset, heldObject)) {
+      heldObject.position.set(offset.x, offset.y, offset.z); // Move the held object with the player
+    } else {
+      // Adjust position slightly to avoid object getting stuck
+      offset.y += 0.1; // Adjust slightly upward to prevent getting stuck
+      heldObject.position.set(offset.x, offset.y, offset.z);
+    }
+  }
 }
 
-// Main animation loop
 const clock = new three.Clock();
 function animate() {
   const delta = clock.getDelta();
-
-  // Update physics with sub-stepping to prevent tunneling
   world.step(fixedTimeStep, delta, maxSubSteps);
-
   updatePlayerMovement(delta);
 
-  // Sync wall meshes with physics bodies
   wall1.position.copy(wall1Body.position);
   wall1.quaternion.copy(wall1Body.quaternion);
   wall2.position.copy(wall2Body.position);
   wall2.quaternion.copy(wall2Body.quaternion);
 
-  // Sync cube and sphere with their physics bodies
   customObject.position.copy(customObjectBody.position);
   customObject.quaternion.copy(customObjectBody.quaternion);
 
@@ -315,12 +329,6 @@ function animate() {
 
 animate();
 
-// Function to resume game from the menu
-function resumeGame() {
-  controls.lock();
-}
-
-// Load Babylon.js skybox
 const skyboxLoader = new three.CubeTextureLoader();
 const skyboxTexture = skyboxLoader.load([
   'https://playground.babylonjs.com/textures/skybox_px.jpg',
