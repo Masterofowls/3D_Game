@@ -213,9 +213,6 @@ function pickUpObject() {
 
     if (distance <= pickupDistance) {
       heldObject = body;
-      heldObject.type = CANNON.Body.KINEMATIC; // Set to kinematic so it follows player smoothly
-
-      // Prevent rotation while the object is held
       heldObject.angularVelocity.set(0, 0, 0);
       heldObject.angularDamping = 1;  // Damping to prevent spinning
     }
@@ -225,7 +222,6 @@ function pickUpObject() {
 // Release held object
 function releaseObject() {
   if (heldObject) {
-    heldObject.type = CANNON.Body.DYNAMIC; // Reset object to dynamic
     heldObject.angularDamping = 0.1; // Reset damping after release
     heldObject = null;
   }
@@ -262,11 +258,8 @@ function updatePlayerMovement(delta) {
     // Position the held object 2 units in front of the camera
     holder.copy(camera.position).add(cameraDirection.multiplyScalar(2));
 
-    // Prevent object from passing through walls
+    // Move object using forces to maintain physics interaction
     heldObject.position.set(holder.x, holder.y, holder.z);
-
-    // Keep the object from rotating
-    heldObject.angularVelocity.set(0, 0, 0);
   }
 }
 
