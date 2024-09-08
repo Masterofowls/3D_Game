@@ -7,19 +7,31 @@ import Stats from 'three/examples/jsm/libs/stats.module.js'; // Import Stats.js
 let isPaused = false;
 const menu = document.getElementById('menu');
 
+// Check if Pointer Lock API is supported
+function pointerLockAvailable() {
+  return (
+    'pointerLockElement' in document ||
+    'mozPointerLockElement' in document ||
+    'webkitPointerLockElement' in document
+  );
+}
+
 // Pause the game
 function pauseGame() {
   isPaused = true;
   menu.style.display = 'block';  // Show the pause menu
   controls.unlock();  // Unlock pointer controls
-  document.exitPointerLock();  // Ensure the cursor shows up
 }
 
 // Resume the game
 function resumeGame() {
-  isPaused = false;
-  menu.style.display = 'none';  // Hide the pause menu
-  controls.lock();  // Lock the pointer again
+  if (pointerLockAvailable()) {
+    isPaused = false;
+    menu.style.display = 'none';  // Hide the pause menu
+    controls.lock();  // Lock the pointer again
+  } else {
+    console.error("Pointer Lock API not available in this browser.");
+  }
 }
 
 // Handle resume button click
@@ -27,7 +39,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const resumeButton = document.getElementById('resumeButton');
   if (resumeButton) {
     resumeButton.onclick = () => {
-      resumeGame();
+      resumeGame();  // Ensure game resumes and pointer is locked
     };
   } else {
     console.error("Resume button not found!");
@@ -74,7 +86,7 @@ controls.addEventListener('unlock', () => {
 
 // Handle locking pointer on click (allowing the player to move on game start)
 document.body.addEventListener('click', () => {
-  if (!isPaused) {
+  if (!isPaused && pointerLockAvailable()) {
     controls.lock();  // Lock the pointer and allow movement when the canvas is clicked
   }
 });
@@ -114,47 +126,13 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Wall texture
-const wallTexture = textureLoader.load('images/brick_wall_006_diff_2k.jpg');
-const wallMaterial = new three.MeshStandardMaterial({ map: wallTexture, metalness: 0.0, roughness: 0.8 });
+// Object interaction logic
+let heldObject = null;
+const raycaster = new three.Raycaster();
+const mouse = new three.Vector2();
 
-// Create walls
-const wall1 = new three.Mesh(new three.BoxGeometry(10, 5, 1), wallMaterial);
-wall1.position.set(0, 2.5, -5);
-wall1.castShadow = true;
-wall1.receiveShadow = true;
-scene.add(wall1);
-
-const wall1Body = new CANNON.Body({
-  mass: 0, // Static object, unmovable
-  shape: new CANNON.Box(new CANNON.Vec3(5, 2.5, 0.5)),
-});
-wall1Body.position.set(0, 2.5, -5);
-world.addBody(wall1Body);
-
-const wall2 = new three.Mesh(new three.BoxGeometry(10, 5, 1), wallMaterial);
-wall2.position.set(-5, 2.5, 0);
-wall2.rotation.y = Math.PI / 2;
-wall2.castShadow = true;
-wall2.receiveShadow = true;
-scene.add(wall2);
-
-const wall2Body = new CANNON.Body({
-  mass: 0, // Static object, unmovable
-  shape: new CANNON.Box(new CANNON.Vec3(5, 2.5, 0.5)),
-});
-wall2Body.position.set(-5, 2.5, 0);
-wall2Body.quaternion.setFromEuler(0, Math.PI / 2, 0);
-world.addBody(wall2Body);
-
-// Light setup
-const hemisphereLight = new three.HemisphereLight(0xddeeff, 0x0f0e0d, 1);
-scene.add(hemisphereLight);
-
-const directionalLight = new three.DirectionalLight(0xffffff, 1.5);
-directionalLight.position.set(10, 20, 10);
-directionalLight.castShadow = true;
-scene.add(directionalLight);
+// Objects
+const interactableObjects = [];
 
 // Cube object with dynamic physics
 const cubeMaterial = new three.MeshStandardMaterial({ color: 0xff0000 });
@@ -162,6 +140,7 @@ const cube = new three.Mesh(new three.BoxGeometry(1, 1, 1), cubeMaterial);
 cube.position.set(0, 1, 0);
 cube.castShadow = true;
 scene.add(cube);
+interactableObjects.push(cube);
 
 const cubeBody = new CANNON.Body({
   mass: 2,
@@ -170,11 +149,35 @@ const cubeBody = new CANNON.Body({
 cubeBody.position.set(0, 1, 0);
 world.addBody(cubeBody);
 
+// Handle interaction when the player clicks
+document.addEventListener('click', (event) => {
+  if (!isPaused && controls.isLocked) {
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(interactableObjects);
+
+    if (intersects.length > 0) {
+      const object = intersects[0].object;
+      heldObject = object;
+      // Handle the interaction with the object here (e.g., pick it up)
+      console.log("Interacted with:", object);
+    }
+  }
+});
+
+function updateMousePosition(event) {
+  // Update the mouse coordinates relative to the canvas for raycasting
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+}
+
+document.addEventListener('mousemove', updateMousePosition);
+
 // Sphere object with dynamic physics
 const sphere = new three.Mesh(new three.SphereGeometry(0.5, 32, 32), new three.MeshStandardMaterial({ color: 0x00ff00 }));
 sphere.position.set(3, 1, 0);
 sphere.castShadow = true;
 scene.add(sphere);
+interactableObjects.push(sphere);
 
 const sphereBody = new CANNON.Body({
   mass: 2,
@@ -275,11 +278,6 @@ function animate() {
     world.step(fixedTimeStep, delta, maxSubSteps);
 
     updatePlayerMovement(delta);
-
-    wall1.position.copy(wall1Body.position);
-    wall1.quaternion.copy(wall1Body.quaternion);
-    wall2.position.copy(wall2Body.position);
-    wall2.quaternion.copy(wall2Body.quaternion);
 
     cube.position.copy(cubeBody.position);
     cube.quaternion.copy(cubeBody.quaternion);
