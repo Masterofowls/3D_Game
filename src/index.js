@@ -1,11 +1,14 @@
-import * as three from 'three'; // Import the three.js module
-import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js'; // Import PointerLockControls
-import * as CANNON from 'cannon-es'; // Import Cannon.js
-import Stats from 'three/examples/jsm/libs/stats.module.js'; // Import Stats.js
+import * as three from 'three';
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import * as CANNON from 'cannon-es';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
 
 // Pause menu logic
 let isPaused = false;
 const menu = document.getElementById('menu');
+
+// Chat system state
+let chatActive = false;
 
 // Check if Pointer Lock API is supported
 function pointerLockAvailable() {
@@ -21,6 +24,7 @@ function pauseGame() {
   isPaused = true;
   menu.style.display = 'block';  // Show the pause menu
   controls.unlock();  // Unlock pointer controls
+  document.exitPointerLock();  // Ensure the cursor shows up
 }
 
 // Resume the game
@@ -28,7 +32,10 @@ function resumeGame() {
   if (pointerLockAvailable()) {
     isPaused = false;
     menu.style.display = 'none';  // Hide the pause menu
-    controls.lock();  // Lock the pointer again
+    // Only try to lock the pointer if it's not already locked
+    if (document.pointerLockElement !== document.body) {
+      controls.lock();  // Lock the pointer again
+    }
   } else {
     console.error("Pointer Lock API not available in this browser.");
   }
@@ -39,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const resumeButton = document.getElementById('resumeButton');
   if (resumeButton) {
     resumeButton.onclick = () => {
-      resumeGame();  // Ensure game resumes and pointer is locked
+      resumeGame();
     };
   } else {
     console.error("Resume button not found!");
@@ -48,12 +55,84 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Toggle Pause with Esc key
 document.addEventListener('keydown', (event) => {
-  if (event.code === 'Escape') {
+  if (event.code === 'Escape' && !chatActive) {
     if (!isPaused) {
       pauseGame();
     } else {
       resumeGame();
     }
+  }
+});
+
+// Chat input setup
+const chatInput = document.createElement('input');
+chatInput.type = 'text';
+chatInput.style.position = 'absolute';
+chatInput.style.bottom = '10px';
+chatInput.style.left = '50%';
+chatInput.style.transform = 'translateX(-50%)';
+chatInput.style.display = 'none';  // Initially hidden
+chatInput.style.padding = '10px';
+chatInput.style.width = '300px';
+chatInput.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+chatInput.style.color = 'white';
+chatInput.style.border = '1px solid #ccc';
+chatInput.style.borderRadius = '5px';
+document.body.appendChild(chatInput);
+
+// Chat message container
+let chatBox = document.createElement('div');
+chatBox.style.position = 'absolute';
+chatBox.style.bottom = '100px';
+chatBox.style.left = '10px';
+chatBox.style.width = '300px';
+chatBox.style.height = '200px';
+chatBox.style.overflowY = 'auto';
+chatBox.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+chatBox.style.color = 'white';
+chatBox.style.padding = '10px';
+chatBox.style.display = 'none';  // Initially hidden
+chatBox.style.borderRadius = '5px';
+document.body.appendChild(chatBox);
+
+// Chat toggle function
+function toggleChat() {
+  if (chatActive) {
+    chatInput.style.display = 'none';
+    chatInput.blur();
+    chatActive = false;
+  } else {
+    chatInput.style.display = 'block';
+    chatInput.focus();
+    chatBox.style.display = 'block';
+    chatActive = true;
+  }
+}
+
+// Event listener for chat input
+document.addEventListener('keydown', (event) => {
+  if (event.code === 'KeyT' && !chatActive) {
+    event.preventDefault();
+    toggleChat();
+  }
+});
+
+// Handle chat input
+chatInput.addEventListener('keydown', (event) => {
+  if (event.code === 'Enter') {
+    const message = chatInput.value.trim();
+    if (message) {
+      const messageElement = document.createElement('div');
+      messageElement.textContent = message;
+      messageElement.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+      messageElement.style.padding = '5px';
+      messageElement.style.marginBottom = '5px';
+      messageElement.style.borderRadius = '3px';
+      chatBox.appendChild(messageElement);
+      chatBox.scrollTop = chatBox.scrollHeight;  // Scroll to the bottom
+    }
+    chatInput.value = '';  // Clear chat input
+    toggleChat();
   }
 });
 
@@ -77,17 +156,19 @@ const controls = new PointerLockControls(camera, document.body);
 
 // Ensure that movement works when the pointer is locked
 controls.addEventListener('lock', () => {
-  isPaused = false;  // Ensure the game is not paused when the pointer is locked
+  isPaused = false;
 });
 
 controls.addEventListener('unlock', () => {
-  pauseGame();  // Pause the game as soon as the pointer is unlocked (e.g., by pressing "Esc")
+  if (!chatActive) pauseGame();
 });
 
 // Handle locking pointer on click (allowing the player to move on game start)
 document.body.addEventListener('click', () => {
   if (!isPaused && pointerLockAvailable()) {
-    controls.lock();  // Lock the pointer and allow movement when the canvas is clicked
+    if (document.pointerLockElement !== document.body) {
+      controls.lock();
+    }
   }
 });
 
@@ -130,8 +211,6 @@ scene.add(ground);
 let heldObject = null;
 const raycaster = new three.Raycaster();
 const mouse = new three.Vector2();
-
-// Objects
 const interactableObjects = [];
 
 // Cube object with dynamic physics
@@ -151,60 +230,26 @@ world.addBody(cubeBody);
 
 // Handle interaction when the player clicks
 document.addEventListener('click', (event) => {
-  if (!isPaused && controls.isLocked) {
+  if (!isPaused && controls.isLocked && !chatActive) {
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObjects(interactableObjects);
 
     if (intersects.length > 0) {
       const object = intersects[0].object;
       heldObject = object;
-      // Handle the interaction with the object here (e.g., pick it up)
       console.log("Interacted with:", object);
     }
   }
 });
 
 function updateMousePosition(event) {
-  // Update the mouse coordinates relative to the canvas for raycasting
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 }
 
 document.addEventListener('mousemove', updateMousePosition);
 
-// Sphere object with dynamic physics
-const sphere = new three.Mesh(new three.SphereGeometry(0.5, 32, 32), new three.MeshStandardMaterial({ color: 0x00ff00 }));
-sphere.position.set(3, 1, 0);
-sphere.castShadow = true;
-scene.add(sphere);
-interactableObjects.push(sphere);
-
-const sphereBody = new CANNON.Body({
-  mass: 2,
-  shape: new CANNON.Sphere(0.5),
-});
-sphereBody.position.set(3, 1, 0);
-world.addBody(sphereBody);
-
-// Player Physics
-const playerBody = new CANNON.Body({
-  mass: 5,
-  shape: new CANNON.Sphere(1),
-});
-playerBody.position.set(0, 1, 10);
-world.addBody(playerBody);
-
-// Helper function to detect collision with the ground for jumping
-function handlePlayerCollision(event) {
-  if (Math.abs(event.contact.ni.y) > 0.5) { // If the collision is from below
-    canJump = true;
-  }
-}
-
-// Add event listener for collisions to enable jumping
-playerBody.addEventListener('collide', handlePlayerCollision);
-
-// ---- MOVEMENT LOGIC ---- //
+// Movement logic
 let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
 let canJump = false;
 let isSprinting = false;
@@ -214,7 +259,7 @@ let velocity = new three.Vector3();
 
 // Movement control logic (keydown)
 function handleMovementControls(event) {
-  if (controls.isLocked && !isPaused) {
+  if (controls.isLocked && !isPaused && !chatActive) {
     switch (event.code) {
       case 'KeyW': moveForward = true; break;
       case 'KeyS': moveBackward = true; break;
@@ -233,7 +278,7 @@ function handleMovementControls(event) {
 
 // Movement control logic (keyup)
 function handleStopMovementControls(event) {
-  if (controls.isLocked && !isPaused) {
+  if (controls.isLocked && !isPaused && !chatActive) {
     switch (event.code) {
       case 'KeyW': moveForward = false; break;
       case 'KeyS': moveBackward = false; break;
@@ -248,7 +293,14 @@ function handleStopMovementControls(event) {
 document.addEventListener('keydown', handleMovementControls);
 document.addEventListener('keyup', handleStopMovementControls);
 
-// ---- MOVEMENT UPDATE AND ANIMATION ---- //
+// Movement update and animation
+const playerBody = new CANNON.Body({
+  mass: 5,
+  shape: new CANNON.Sphere(1),
+});
+playerBody.position.set(0, 1, 10);
+world.addBody(playerBody);
+
 function updatePlayerMovement(delta) {
   velocity.set(0, 0, 0);
   const moveSpeed = isSprinting ? baseMoveSpeed * sprintMultiplier : baseMoveSpeed;
@@ -273,23 +325,15 @@ function updatePlayerMovement(delta) {
 
 const clock = new three.Clock();
 function animate() {
-  if (!isPaused) {  // Update only if the game is not paused
+  if (!isPaused) {
     const delta = clock.getDelta();
     world.step(fixedTimeStep, delta, maxSubSteps);
-
     updatePlayerMovement(delta);
-
     cube.position.copy(cubeBody.position);
     cube.quaternion.copy(cubeBody.quaternion);
-
-    sphere.position.copy(sphereBody.position);
-    sphere.quaternion.copy(sphereBody.quaternion);
-
     stats.update();
-
     renderer.render(scene, camera);
   }
-
   requestAnimationFrame(animate);
 }
 
