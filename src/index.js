@@ -158,6 +158,13 @@ let holder = new three.Vector3();
 
 const pickupDistance = 2.5;
 
+// Event listener for collisions to enable jumping
+playerBody.addEventListener('collide', (event) => {
+  if (event.body === groundBody) {
+    canJump = true;
+  }
+});
+
 // Input controls
 document.addEventListener('keydown', (event) => {
   switch (event.code) {
