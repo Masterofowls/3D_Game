@@ -1,14 +1,10 @@
-import * as three from 'three'; // Import the three.js module
-import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js'; // Import PointerLockControls
-import * as CANNON from 'cannon-es'; // Import Cannon.js
-import Stats from 'three/examples/jsm/libs/stats.module.js'; // Import Stats.js
+import * as three from 'three';
+import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import * as CANNON from 'cannon-es';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
 
-let isPaused = false;
-const resumeButton = document.getElementById('resumeButton');
-const menu = document.getElementById('menu');
-
-// Event Listener for Resume Button
 document.addEventListener('DOMContentLoaded', function () {
+  const resumeButton = document.getElementById('resumeButton');
   if (resumeButton) {
     resumeButton.onclick = resumeGame;
   } else {
@@ -16,21 +12,10 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
-// Pause the game
-function pauseGame() {
-  isPaused = true;
-  controls.unlock(); // Unlock the pointer
-  menu.style.display = 'block'; // Show the pause menu
-}
-
-// Resume the game
 function resumeGame() {
-  isPaused = false;
-  controls.lock(); // Lock the pointer and resume game
-  menu.style.display = 'none'; // Hide the pause menu
+  controls.lock();
 }
 
-// Scene and Renderer
 const scene = new three.Scene();
 const renderer = new three.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -42,32 +27,21 @@ document.body.appendChild(renderer.domElement);
 const stats = new Stats();
 document.body.appendChild(stats.dom);
 
-// Camera and Controls
 const camera = new three.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 1.8, 5);
+
 const controls = new PointerLockControls(camera, document.body);
+document.body.addEventListener('click', () => controls.lock());
+controls.addEventListener('lock', () => document.getElementById('menu').style.display = 'none');
+controls.addEventListener('unlock', () => document.getElementById('menu').style.display = 'block');
 
-// Lock and Unlock event listeners for pointer controls
-controls.addEventListener('lock', () => {
-  menu.style.display = 'none';  // Hide the pause menu when pointer is locked
-});
-controls.addEventListener('unlock', () => {
-  if (!isPaused) pauseGame(); // Pause the game when the pointer is unlocked
-});
-
-// Lock pointer on body click
-document.body.addEventListener('click', () => {
-  if (!isPaused) controls.lock();
-});
-
-// Handle window resize
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 });
 
-// Physics world setup (Cannon.js)
+// Physics world
 const world = new CANNON.World();
 world.gravity.set(0, -9.82, 0);
 world.broadphase = new CANNON.NaiveBroadphase();
@@ -96,10 +70,11 @@ ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Wall setup
+// Wall texture
 const wallTexture = textureLoader.load('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brick_wall_006/brick_wall_006_diff_2k.jpg');
 const wallMaterial = new three.MeshStandardMaterial({ map: wallTexture, metalness: 0.0, roughness: 0.8 });
 
+// Create walls
 const wall1 = new three.Mesh(new three.BoxGeometry(10, 5, 1), wallMaterial);
 wall1.position.set(0, 2.5, -5);
 wall1.castShadow = true;
@@ -128,7 +103,7 @@ wall2Body.position.set(-5, 2.5, 0);
 wall2Body.quaternion.setFromEuler(0, Math.PI / 2, 0);
 world.addBody(wall2Body);
 
-// Lighting setup
+// Light setup
 const hemisphereLight = new three.HemisphereLight(0xddeeff, 0x0f0e0d, 1);
 scene.add(hemisphereLight);
 
@@ -172,7 +147,6 @@ const playerBody = new CANNON.Body({
 playerBody.position.set(0, 1, 10);
 world.addBody(playerBody);
 
-// Player movement logic
 let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
 let canJump = false;
 let isSprinting = false;
@@ -180,130 +154,36 @@ let baseMoveSpeed = 100;
 let sprintMultiplier = 2;
 let velocity = new three.Vector3();
 let heldObject = null;
+let holder = new three.Vector3();
+
 const pickupDistance = 2.5;
 
-// Chat System
-const chatInput = document.createElement('input');
-chatInput.type = 'text';
-chatInput.style.position = 'absolute';
-chatInput.style.bottom = '10px';
-chatInput.style.left = '50%';
-chatInput.style.transform = 'translateX(-50%)';
-chatInput.style.display = 'none';
-chatInput.style.padding = '10px';
-chatInput.style.width = '300px';
-chatInput.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-chatInput.style.color = 'white';
-chatInput.style.border = '1px solid #ccc';
-chatInput.style.borderRadius = '5px';
-document.body.appendChild(chatInput);
-
-let chatBox = document.createElement('div');
-chatBox.style.position = 'absolute';
-chatBox.style.bottom = '50px';
-chatBox.style.left = '50%';
-chatBox.style.transform = 'translateX(-50%)';
-chatBox.style.maxHeight = '150px';
-chatBox.style.overflowY = 'auto';
-chatBox.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-chatBox.style.color = 'white';
-chatBox.style.padding = '10px';
-chatBox.style.width = '300px';
-chatBox.style.borderRadius = '5px';
-document.body.appendChild(chatBox);
-
-let chatActive = false;
-
-// Toggle chat
-function toggleChat() {
-  if (chatActive) {
-    chatInput.style.display = 'none';
-    chatInput.blur();
-    chatActive = false;
-    controls.lock(); // Resume game when closing chat
-  } else {
-    chatInput.style.display = 'block';
-    chatInput.focus();
-    chatActive = true;
-    controls.unlock(); // Pause game while chat is active
-  }
-}
-
-// Handle chat input
-document.addEventListener('keydown', (event) => {
-  if (event.code === 'KeyT' && !chatActive) {
-    event.preventDefault();
-    toggleChat();
-  }
-});
-
-chatInput.addEventListener('keydown', (event) => {
-  if (event.code === 'Enter') {
-    const message = chatInput.value.trim();
-    if (message) addChatMessage(message);
-    chatInput.value = ''; // Clear input
-    toggleChat();
-  }
-});
-
-function addChatMessage(message) {
-  const messageElement = document.createElement('div');
-  messageElement.textContent = message;
-  chatBox.appendChild(messageElement);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-// Object interaction logic
-const raycaster = new three.Raycaster();
-const interactableObjects = [cube, sphere];
-
-function pickUpObject() {
-  raycaster.setFromCamera(new three.Vector2(0, 0), camera);
-  const intersects = raycaster.intersectObjects(interactableObjects);
-
-  if (intersects.length > 0) {
-    const intersectedObject = intersects[0].object;
-    let body = intersectedObject === cube ? cubeBody : sphereBody;
-
-    if (playerBody.position.distanceTo(intersectedObject.position) <= pickupDistance) {
-      heldObject = body;
-      heldObject.type = CANNON.Body.KINEMATIC;
-      heldObject.allowSleep = false;
-      heldObject.gravityScale = 0;
-    }
-  }
-}
-
-function releaseObject() {
-  if (heldObject) {
-    heldObject.type = CANNON.Body.DYNAMIC;
-    heldObject.gravityScale = 1;
-    heldObject = null;
-  }
-}
-
-function throwObject() {
-  if (heldObject) {
-    const throwVelocity = new CANNON.Vec3();
-    const cameraDirection = new three.Vector3();
-    camera.getWorldDirection(cameraDirection);
-    throwVelocity.set(cameraDirection.x * 20, cameraDirection.y * 20, cameraDirection.z * 20);
-    heldObject.velocity.copy(throwVelocity);
-    releaseObject();
-  }
-}
-
-// Input controls for movement, sprint, and interactions
+// Input controls
 document.addEventListener('keydown', (event) => {
   switch (event.code) {
     case 'KeyW': moveForward = true; break;
     case 'KeyS': moveBackward = true; break;
     case 'KeyA': moveLeft = true; break;
     case 'KeyD': moveRight = true; break;
-    case 'ShiftLeft': isSprinting = true; break;
-    case 'Space': if (canJump) playerBody.velocity.y = 10; break;
-    case 'KeyE': heldObject ? releaseObject() : pickUpObject(); break;
-    case 'KeyF': throwObject(); break;
+    case 'ControlLeft': isSprinting = true; break;
+    case 'Space':
+      if (canJump) {
+        playerBody.velocity.y = 10;
+        canJump = false;
+      }
+      break;
+    case 'KeyE':
+      if (heldObject) {
+        releaseObject();
+      } else {
+        pickUpObject();
+      }
+      break;
+    case 'KeyF':
+      if (heldObject) {
+        throwObject();
+      }
+      break;
   }
 });
 
@@ -313,11 +193,68 @@ document.addEventListener('keyup', (event) => {
     case 'KeyS': moveBackward = false; break;
     case 'KeyA': moveLeft = false; break;
     case 'KeyD': moveRight = false; break;
-    case 'ShiftLeft': isSprinting = false; break;
+    case 'ControlLeft': isSprinting = false; break;
   }
 });
 
-// Update player movement
+// Picking up objects and making them kinematic
+function pickUpObject() {
+  const raycaster = new three.Raycaster();
+  raycaster.setFromCamera(new three.Vector2(0, 0), camera);
+  const intersects = raycaster.intersectObjects([cube, sphere]);
+
+  if (intersects.length > 0) {
+    const intersectedObject = intersects[0].object;
+    let body;
+    if (intersectedObject === cube) {
+      body = cubeBody;
+    } else if (intersectedObject === sphere) {
+      body = sphereBody;
+    }
+
+    const distance = playerBody.position.distanceTo(intersectedObject.position);
+
+    if (distance <= pickupDistance) {
+      heldObject = body;
+      heldObject.angularVelocity.set(0, 0, 0);
+      heldObject.angularDamping = 1;
+
+      // Disable gravity and set kinematic so the object doesn't affect the player
+      heldObject.type = CANNON.Body.KINEMATIC;
+      heldObject.allowSleep = false;
+      heldObject.gravityScale = 0;
+
+      // Adjust object position smoothly to prevent passing through walls
+      heldObject.collisionResponse = false;
+    }
+  }
+}
+
+// Release held object and make it dynamic again
+function releaseObject() {
+  if (heldObject) {
+    heldObject.type = CANNON.Body.DYNAMIC;
+    heldObject.gravityScale = 1;
+    heldObject.angularDamping = 0.1;
+    heldObject.collisionResponse = true;
+    heldObject = null;
+  }
+}
+
+// Throw object with velocity
+function throwObject() {
+  if (heldObject) {
+    const throwVelocity = new CANNON.Vec3();
+    const cameraDirection = new three.Vector3();
+    camera.getWorldDirection(cameraDirection);
+    throwVelocity.set(cameraDirection.x * 20, cameraDirection.y * 20, cameraDirection.z * 20);
+
+    heldObject.velocity.copy(throwVelocity);
+    releaseObject();
+  }
+}
+
+// Movement logic and restrictions
 function updatePlayerMovement(delta) {
   velocity.set(0, 0, 0);
   const moveSpeed = isSprinting ? baseMoveSpeed * sprintMultiplier : baseMoveSpeed;
@@ -338,6 +275,17 @@ function updatePlayerMovement(delta) {
 
   camera.position.copy(playerBody.position);
   controls.object.position.copy(playerBody.position);
+
+  // Move held object smoothly with the player
+  if (heldObject) {
+    const cameraDirection = new three.Vector3();
+    camera.getWorldDirection(cameraDirection);
+    cameraDirection.normalize();
+
+    holder.copy(camera.position).add(cameraDirection.multiplyScalar(2));
+
+    heldObject.position.set(holder.x, holder.y, holder.z);
+  }
 }
 
 // Animation loop
@@ -348,7 +296,11 @@ function animate() {
 
   updatePlayerMovement(delta);
 
-  // Sync the physics bodies and Three.js meshes
+  wall1.position.copy(wall1Body.position);
+  wall1.quaternion.copy(wall1Body.quaternion);
+  wall2.position.copy(wall2Body.position);
+  wall2.quaternion.copy(wall2Body.quaternion);
+
   cube.position.copy(cubeBody.position);
   cube.quaternion.copy(cubeBody.quaternion);
 
@@ -356,20 +308,9 @@ function animate() {
   sphere.quaternion.copy(sphereBody.quaternion);
 
   stats.update();
+
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
 
 animate();
-
-// Load skybox texture
-const skyboxLoader = new three.CubeTextureLoader();
-const skyboxTexture = skyboxLoader.load([
-  'https://playground.babylonjs.com/textures/skybox_px.jpg',
-  'https://playground.babylonjs.com/textures/skybox_nx.jpg',
-  'https://playground.babylonjs.com/textures/skybox_py.jpg',
-  'https://playground.babylonjs.com/textures/skybox_ny.jpg',
-  'https://playground.babylonjs.com/textures/skybox_pz.jpg',
-  'https://playground.babylonjs.com/textures/skybox_nz.jpg',
-]);
-scene.background = skyboxTexture;
