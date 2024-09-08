@@ -1,6 +1,7 @@
 import * as three from 'three'; // Import the three.js module
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js'; // Import PointerLockControls
 import * as CANNON from 'cannon-es'; // Import Cannon.js
+import Stats from 'three/examples/jsm/libs/stats.module.js'; // Import Stats.js
 
 document.addEventListener('DOMContentLoaded', function () {
   const resumeButton = document.getElementById('resumeButton');
@@ -21,6 +22,10 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = three.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
+
+// FPS Counter (Stats.js)
+const stats = new Stats();
+document.body.appendChild(stats.dom);
 
 const camera = new three.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 1.8, 5);
@@ -153,8 +158,48 @@ let holder = new three.Vector3(); // Position where object is held in front of p
 
 const pickupDistance = 2.5;
 
+// Chat System
+const chatInput = document.createElement('input');
+chatInput.type = 'text';
+chatInput.style.position = 'absolute';
+chatInput.style.bottom = '10px';
+chatInput.style.left = '50%';
+chatInput.style.transform = 'translateX(-50%)';
+chatInput.style.display = 'none'; // Start hidden
+chatInput.style.padding = '10px';
+chatInput.style.width = '300px';
+chatInput.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+chatInput.style.color = 'white';
+chatInput.style.border = '1px solid #ccc';
+chatInput.style.borderRadius = '5px';
+document.body.appendChild(chatInput);
+
+let chatBox = document.createElement('div');
+chatBox.style.position = 'absolute';
+chatBox.style.bottom = '50px';
+chatBox.style.left = '50%';
+chatBox.style.transform = 'translateX(-50%)';
+chatBox.style.maxHeight = '150px';
+chatBox.style.overflowY = 'auto';
+chatBox.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+chatBox.style.color = 'white';
+chatBox.style.padding = '10px';
+chatBox.style.width = '300px';
+chatBox.style.borderRadius = '5px';
+document.body.appendChild(chatBox);
+
+let chatActive = false;
+
+// Prevent default behavior for 'T' key
+document.addEventListener('keydown', (event) => {
+  if (event.code === 'KeyT') {
+    event.preventDefault(); // Prevent default behavior of 'T' key
+  }
+});
+
 // Handle collisions to detect jumping
 playerBody.addEventListener('collide', (event) => {
+  // Check if the collision is coming from the bottom
   if (Math.abs(event.contact.ni.y) > 0.5) {
     canJump = true;
   }
@@ -167,19 +212,27 @@ document.addEventListener('keydown', (event) => {
     case 'KeyS': moveBackward = true; break;
     case 'KeyA': moveLeft = true; break;
     case 'KeyD': moveRight = true; break;
-    case 'Space':
+    case 'ControlLeft': isSprinting = true; break;
+    case 'Space': 
       if (canJump) {
-        playerBody.velocity.y = 10;
-        canJump = false;
+        playerBody.velocity.y = 10;  // Apply an upward velocity to simulate a jump
+        canJump = false;  // Disable jumping until the player hits the ground
       }
       break;
-    case 'ControlLeft': isSprinting = true; break;
     case 'KeyE': 
       if (heldObject) {
         releaseObject();
       } else {
         pickUpObject();
       }
+      break;
+    case 'KeyF': 
+      if (heldObject) {
+        throwObject(); // Throw the object when 'F' key is pressed
+      }
+      break;
+    case 'KeyT': 
+      toggleChat(); // Show chat when 'T' is pressed
       break;
   }
 });
@@ -194,7 +247,44 @@ document.addEventListener('keyup', (event) => {
   }
 });
 
-// Picking up objects
+// Chat toggle function
+function toggleChat() {
+  if (chatActive) {
+    chatInput.style.display = 'none';  // Hide chat input
+    chatInput.blur();                  // Remove focus
+    chatActive = false;                // Chat is inactive
+    controls.lock();                   // Re-enable pointer lock after closing chat
+  } else {
+    chatInput.style.display = 'block'; // Show chat input
+    chatInput.focus();                 // Focus chat input
+    chatActive = true;                 // Chat is active
+    controls.unlock();                 // Unlock pointer when chat is open
+  }
+}
+
+// Event listener for chat input
+chatInput.addEventListener('keydown', (event) => {
+  if (event.code === 'Enter') {
+    const message = chatInput.value.trim();
+    if (message) {
+      addChatMessage(message);
+    }
+    chatInput.value = ''; // Clear input after sending
+    toggleChat(); // Close chat after pressing enter
+  }
+});
+
+// Function to display chat messages
+function addChatMessage(message) {
+  const messageElement = document.createElement('div');
+  messageElement.textContent = message;
+  chatBox.appendChild(messageElement);
+
+  // Auto-scroll to the bottom of the chat box
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// Picking up objects and making them kinematic
 function pickUpObject() {
   const raycaster = new three.Raycaster();
   raycaster.setFromCamera(new three.Vector2(0, 0), camera);
@@ -214,20 +304,40 @@ function pickUpObject() {
     if (distance <= pickupDistance) {
       heldObject = body;
       heldObject.angularVelocity.set(0, 0, 0);
-      heldObject.angularDamping = 1;  // Damping to prevent spinning
+      heldObject.angularDamping = 1;
+
+      // Disable gravity and set kinematic so the object doesn't affect the player
+      heldObject.type = CANNON.Body.KINEMATIC;
+      heldObject.allowSleep = false;
+      heldObject.gravityScale = 0;
     }
   }
 }
 
-// Release held object
+// Release held object and make it dynamic again
 function releaseObject() {
   if (heldObject) {
+    heldObject.type = CANNON.Body.DYNAMIC; // Restore dynamic behavior
+    heldObject.gravityScale = 1; // Re-enable gravity
     heldObject.angularDamping = 0.1; // Reset damping after release
     heldObject = null;
   }
 }
 
-// Movement logic
+// Throw object with velocity
+function throwObject() {
+  if (heldObject) {
+    const throwVelocity = new CANNON.Vec3();
+    const cameraDirection = new three.Vector3();
+    camera.getWorldDirection(cameraDirection);
+    throwVelocity.set(cameraDirection.x * 20, cameraDirection.y * 20, cameraDirection.z * 20); // Set throw force
+
+    heldObject.velocity.copy(throwVelocity); // Apply throw velocity
+    releaseObject(); // Release the object after throwing
+  }
+}
+
+// Movement logic and restrictions
 function updatePlayerMovement(delta) {
   velocity.set(0, 0, 0);
   const moveSpeed = isSprinting ? baseMoveSpeed * sprintMultiplier : baseMoveSpeed;
@@ -258,7 +368,7 @@ function updatePlayerMovement(delta) {
     // Position the held object 2 units in front of the camera
     holder.copy(camera.position).add(cameraDirection.multiplyScalar(2));
 
-    // Move object using forces to maintain physics interaction
+    // Move object directly to that position
     heldObject.position.set(holder.x, holder.y, holder.z);
   }
 }
@@ -281,6 +391,9 @@ function animate() {
 
   sphere.position.copy(sphereBody.position);
   sphere.quaternion.copy(sphereBody.quaternion);
+
+  // Update FPS counter
+  stats.update();
 
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
