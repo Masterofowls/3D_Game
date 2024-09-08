@@ -3,18 +3,47 @@ import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockCont
 import * as CANNON from 'cannon-es'; // Import Cannon.js
 import Stats from 'three/examples/jsm/libs/stats.module.js'; // Import Stats.js
 
+// Pause menu logic
+let isPaused = false;
+const menu = document.getElementById('menu');
+
+// Pause the game
+function pauseGame() {
+  isPaused = true;
+  menu.style.display = 'block';  // Show the pause menu
+  controls.unlock();  // Unlock pointer controls
+  document.exitPointerLock();  // Ensure the cursor shows up
+}
+
+// Resume the game
+function resumeGame() {
+  isPaused = false;
+  menu.style.display = 'none';  // Hide the pause menu
+  controls.lock();  // Lock the pointer again
+}
+
+// Handle resume button click
 document.addEventListener('DOMContentLoaded', function () {
   const resumeButton = document.getElementById('resumeButton');
   if (resumeButton) {
-    resumeButton.onclick = resumeGame;
+    resumeButton.onclick = () => {
+      resumeGame();
+    };
   } else {
     console.error("Resume button not found!");
   }
 });
 
-function resumeGame() {
-  controls.lock();  // Ensures the player locks the pointer on resuming the game
-}
+// Toggle Pause with Esc key
+document.addEventListener('keydown', (event) => {
+  if (event.code === 'Escape') {
+    if (!isPaused) {
+      pauseGame();
+    } else {
+      resumeGame();
+    }
+  }
+});
 
 // Create the scene and renderer
 const scene = new three.Scene();
@@ -34,10 +63,19 @@ camera.position.set(0, 1.8, 5);
 
 const controls = new PointerLockControls(camera, document.body);
 
-// Handle locking pointer on click
+// Ensure that movement works when the pointer is locked
+controls.addEventListener('lock', () => {
+  isPaused = false;  // Ensure the game is not paused when the pointer is locked
+});
+
+controls.addEventListener('unlock', () => {
+  pauseGame();  // Pause the game as soon as the pointer is unlocked (e.g., by pressing "Esc")
+});
+
+// Handle locking pointer on click (allowing the player to move on game start)
 document.body.addEventListener('click', () => {
-  if (!chatActive) {
-    controls.lock(); // Keep controls locked even when chat is not active
+  if (!isPaused) {
+    controls.lock();  // Lock the pointer and allow movement when the canvas is clicked
   }
 });
 
@@ -167,13 +205,13 @@ playerBody.addEventListener('collide', handlePlayerCollision);
 let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
 let canJump = false;
 let isSprinting = false;
-let baseMoveSpeed = 50; // Greatly increased base movement speed
-let sprintMultiplier = 6; // Significantly increased sprint speed
+let baseMoveSpeed = 50;
+let sprintMultiplier = 6;
 let velocity = new three.Vector3();
 
 // Movement control logic (keydown)
 function handleMovementControls(event) {
-  if (controls.isLocked && !chatActive) {
+  if (controls.isLocked && !isPaused) {
     switch (event.code) {
       case 'KeyW': moveForward = true; break;
       case 'KeyS': moveBackward = true; break;
@@ -182,7 +220,7 @@ function handleMovementControls(event) {
       case 'ShiftLeft': isSprinting = true; break;
       case 'Space': 
         if (canJump) {
-          playerBody.velocity.y = 15; // Increased jump power
+          playerBody.velocity.y = 15;
           canJump = false;
         }
         break;
@@ -192,7 +230,7 @@ function handleMovementControls(event) {
 
 // Movement control logic (keyup)
 function handleStopMovementControls(event) {
-  if (controls.isLocked && !chatActive) {
+  if (controls.isLocked && !isPaused) {
     switch (event.code) {
       case 'KeyW': moveForward = false; break;
       case 'KeyS': moveBackward = false; break;
@@ -207,181 +245,7 @@ function handleStopMovementControls(event) {
 document.addEventListener('keydown', handleMovementControls);
 document.addEventListener('keyup', handleStopMovementControls);
 
-// ---- CHAT LOGIC ---- //
-const chatInput = document.createElement('input');
-chatInput.type = 'text';
-chatInput.style.position = 'absolute';
-chatInput.style.bottom = '10px';
-chatInput.style.left = '50%';
-chatInput.style.transform = 'translateX(-50%)';
-chatInput.style.display = 'none'; // Start hidden
-chatInput.style.padding = '10px';
-chatInput.style.width = '300px';
-chatInput.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-chatInput.style.color = 'white';
-chatInput.style.border = '1px solid #ccc';
-chatInput.style.borderRadius = '5px';
-document.body.appendChild(chatInput);
-
-// Chat messages container (on the left)
-let chatBox = document.createElement('div');
-chatBox.style.position = 'absolute';
-chatBox.style.bottom = '100px';
-chatBox.style.left = '10px';
-chatBox.style.width = '300px';
-chatBox.style.height = '200px';
-chatBox.style.overflowY = 'auto';
-chatBox.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-chatBox.style.color = 'white';
-chatBox.style.padding = '10px';
-chatBox.style.display = 'none'; // Initially hidden
-chatBox.style.borderRadius = '5px';
-document.body.appendChild(chatBox);
-
-let chatActive = false;
-let hideTimeout = null;
-
-const CHAT_INACTIVITY_TIMEOUT = 15000; // 15 seconds inactivity before hiding chat
-
-// Chat toggle function
-function toggleChat() {
-  if (chatActive) {
-    chatInput.style.display = 'none';  // Hide chat input
-    chatInput.blur();                  // Remove focus
-    chatActive = false;                // Chat is inactive
-    resetChatHideTimeout();            // Reset the hide timeout for inactivity
-  } else {
-    chatInput.style.display = 'block'; // Show chat input
-    chatInput.focus();                 // Focus chat input
-    chatBox.style.display = 'block';   // Show chat messages container
-    chatActive = true;                 // Chat is active
-    resetChatHideTimeout();            // Reset the hide timeout for inactivity
-  }
-}
-
-// Toggle chat with T key (ignoring conflicts when typing in chat)
-document.addEventListener('keydown', (event) => {
-  if (event.code === 'KeyT' && !chatActive) {
-    event.preventDefault();
-    toggleChat();
-  }
-});
-
-// Handle chat input
-chatInput.addEventListener('keydown', (event) => {
-  if (event.code === 'Enter') {
-    const message = chatInput.value.trim();
-    if (message) {
-      addChatMessage(message);
-    }
-    chatInput.value = ''; // Clear input after sending
-    toggleChat(); // Close chat after pressing enter
-  }
-});
-
-// Function to display chat messages
-function addChatMessage(message) {
-  const messageElement = document.createElement('div');
-  messageElement.textContent = message;
-  messageElement.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-  messageElement.style.padding = '5px';
-  messageElement.style.marginBottom = '5px';
-  messageElement.style.borderRadius = '3px';
-
-  chatBox.appendChild(messageElement);
-  
-  // Scroll to the bottom to show the latest message
-  chatBox.scrollTop = chatBox.scrollHeight;
-  
-  resetChatHideTimeout(); // Reset the inactivity timeout whenever a message is added
-}
-
-// Auto-hide chat after inactivity
-function resetChatHideTimeout() {
-  clearTimeout(hideTimeout); // Clear any previous timeout
-  hideTimeout = setTimeout(() => {
-    if (!chatActive) {
-      chatBox.style.display = 'none'; // Hide chat messages after inactivity
-    }
-  }, CHAT_INACTIVITY_TIMEOUT);
-}
-
-// ---- OBJECT INTERACTION LOGIC ---- //
-let heldObject = null;
-let holder = new three.Vector3(); // Position where object is held in front of player
-const pickupDistance = 3; // Increased pickup distance for easier interaction
-
-// Picking up, releasing, and throwing objects
-document.addEventListener('keydown', (event) => {
-  if (event.code === 'KeyE') {
-    if (heldObject) {
-      releaseObject();
-    } else {
-      pickUpObject();
-    }
-  }
-
-  if (event.code === 'KeyF') {
-    throwObject();
-  }
-});
-
-// Picking up objects
-function pickUpObject() {
-  const raycaster = new three.Raycaster();
-  raycaster.setFromCamera(new three.Vector2(0, 0), camera);
-  const intersects = raycaster.intersectObjects([cube, sphere]);
-
-  if (intersects.length > 0) {
-    const intersectedObject = intersects[0].object;
-    let body;
-    if (intersectedObject === cube) {
-      body = cubeBody;
-    } else if (intersectedObject === sphere) {
-      body = sphereBody;
-    }
-
-    const distance = playerBody.position.distanceTo(intersectedObject.position);
-
-    if (distance <= pickupDistance) {
-      heldObject = body;
-      heldObject.angularVelocity.set(0, 0, 0);
-      heldObject.angularDamping = 1;
-
-      // Disable gravity and set kinematic so the object doesn't affect the player
-      heldObject.type = CANNON.Body.KINEMATIC;
-      heldObject.allowSleep = false;
-      heldObject.gravityScale = 0;
-    }
-  }
-}
-
-// Release held object and make it dynamic again
-function releaseObject() {
-  if (heldObject) {
-    heldObject.type = CANNON.Body.DYNAMIC; // Restore dynamic behavior
-    heldObject.gravityScale = 1; // Re-enable gravity
-    heldObject.angularDamping = 0.1; // Reset damping after release
-    heldObject = null;
-  }
-}
-
-// Throw object with velocity using 'F'
-function throwObject() {
-  if (heldObject) {
-    const throwVelocity = new CANNON.Vec3();
-    const cameraDirection = new three.Vector3();
-    camera.getWorldDirection(cameraDirection);
-    throwVelocity.set(cameraDirection.x * 30, cameraDirection.y * 30, cameraDirection.z * 30); // Set throw force
-
-    heldObject.velocity.copy(throwVelocity); // Apply throw velocity
-    releaseObject(); // Release the object after throwing
-  }
-}
-
-// ---- UPDATE FUNCTIONS ---- //
-
-// Movement logic and restrictions
+// ---- MOVEMENT UPDATE AND ANIMATION ---- //
 function updatePlayerMovement(delta) {
   velocity.set(0, 0, 0);
   const moveSpeed = isSprinting ? baseMoveSpeed * sprintMultiplier : baseMoveSpeed;
@@ -402,44 +266,32 @@ function updatePlayerMovement(delta) {
 
   camera.position.copy(playerBody.position);
   controls.object.position.copy(playerBody.position);
-
-  // Move held object smoothly with the player
-  if (heldObject) {
-    const cameraDirection = new three.Vector3();
-    camera.getWorldDirection(cameraDirection);
-    cameraDirection.normalize();
-
-    // Position the held object 2 units in front of the camera
-    holder.copy(camera.position).add(cameraDirection.multiplyScalar(2));
-
-    // Move object directly to that position
-    heldObject.position.set(holder.x, holder.y, holder.z);
-  }
 }
 
-// Animation loop
 const clock = new three.Clock();
 function animate() {
-  const delta = clock.getDelta();
-  world.step(fixedTimeStep, delta, maxSubSteps);
+  if (!isPaused) {  // Update only if the game is not paused
+    const delta = clock.getDelta();
+    world.step(fixedTimeStep, delta, maxSubSteps);
 
-  updatePlayerMovement(delta);
+    updatePlayerMovement(delta);
 
-  wall1.position.copy(wall1Body.position);
-  wall1.quaternion.copy(wall1Body.quaternion);
-  wall2.position.copy(wall2Body.position);
-  wall2.quaternion.copy(wall2Body.quaternion);
+    wall1.position.copy(wall1Body.position);
+    wall1.quaternion.copy(wall1Body.quaternion);
+    wall2.position.copy(wall2Body.position);
+    wall2.quaternion.copy(wall2Body.quaternion);
 
-  cube.position.copy(cubeBody.position);
-  cube.quaternion.copy(cubeBody.quaternion);
+    cube.position.copy(cubeBody.position);
+    cube.quaternion.copy(cubeBody.quaternion);
 
-  sphere.position.copy(sphereBody.position);
-  sphere.quaternion.copy(sphereBody.quaternion);
+    sphere.position.copy(sphereBody.position);
+    sphere.quaternion.copy(sphereBody.quaternion);
 
-  // Update FPS counter
-  stats.update();
+    stats.update();
 
-  renderer.render(scene, camera);
+    renderer.render(scene, camera);
+  }
+
   requestAnimationFrame(animate);
 }
 
