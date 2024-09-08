@@ -77,7 +77,7 @@ ground.receiveShadow = true;
 scene.add(ground);
 
 // Wall texture
-const wallTexture = textureLoader.load('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brick_wall_006/brick_wall_006_diff_2k.jpg');
+const wallTexture = textureLoader.load('images/brick_wall_006_diff_2k.jpg');
 const wallMaterial = new three.MeshStandardMaterial({ map: wallTexture, metalness: 0.0, roughness: 0.8 });
 
 // Create walls
