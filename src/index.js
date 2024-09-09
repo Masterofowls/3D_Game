@@ -41,6 +41,18 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
 });
 
+// Load Babylon.js online skybox textures using CubeTextureLoader
+const skyboxLoader = new three.CubeTextureLoader();
+const skyboxTexture = skyboxLoader.load([
+  'https://playground.babylonjs.com/textures/skybox_px.jpg',
+  'https://playground.babylonjs.com/textures/skybox_nx.jpg',
+  'https://playground.babylonjs.com/textures/skybox_py.jpg',
+  'https://playground.babylonjs.com/textures/skybox_ny.jpg',
+  'https://playground.babylonjs.com/textures/skybox_pz.jpg',
+  'https://playground.babylonjs.com/textures/skybox_nz.jpg'
+]);
+scene.background = skyboxTexture;
+
 // Physics world
 const world = new CANNON.World();
 world.gravity.set(0, -9.82, 0);
