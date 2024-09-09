@@ -3,17 +3,44 @@ import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockCont
 import * as CANNON from 'cannon-es';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 
+let isGameRunning = false; // Track if the game is running
+let paused = false; // Track if the game is paused
+
 document.addEventListener('DOMContentLoaded', function () {
-  const resumeButton = document.getElementById('resumeButton');
-  if (resumeButton) {
-    resumeButton.onclick = resumeGame;
+  const mainButton = document.getElementById('mainButton');
+
+  if (mainButton) {
+    mainButton.onclick = () => {
+      if (isGameRunning) {
+        resumeGame(); // Resume the game if already started and paused
+      } else {
+        startGame(); // Start the game for the first time
+      }
+    };
   } else {
-    console.error("Resume button not found!");
+    console.error("Main button not found!");
   }
 });
 
+function startGame() {
+  controls.lock(); // Lock the pointer for the first time
+  isGameRunning = true;
+  paused = false;
+  document.getElementById('mainButton').innerText = 'Resume Game'; // Change button to 'Resume Game' after start
+  document.getElementById('menu').style.display = 'none'; // Hide the menu
+  animate(); // Start the game animation loop
+}
+
 function resumeGame() {
-  controls.lock();
+  controls.lock(); // Lock the pointer again to resume
+  paused = false;
+  document.getElementById('menu').style.display = 'none'; // Hide the menu
+  animate(); // Resume the animation loop
+}
+
+function pauseGame() {
+  paused = true;
+  document.getElementById('menu').style.display = 'block'; // Show the menu when paused
 }
 
 const scene = new three.Scene();
@@ -31,9 +58,16 @@ const camera = new three.PerspectiveCamera(75, window.innerWidth / window.innerH
 camera.position.set(0, 1.8, 5);
 
 const controls = new PointerLockControls(camera, document.body);
-document.body.addEventListener('click', () => controls.lock());
-controls.addEventListener('lock', () => document.getElementById('menu').style.display = 'none');
-controls.addEventListener('unlock', () => document.getElementById('menu').style.display = 'block');
+document.body.addEventListener('click', () => {
+  if (!isGameRunning) return; // Prevent locking controls before the game starts
+  controls.lock();
+});
+controls.addEventListener('lock', () => {
+  if (!paused) document.getElementById('menu').style.display = 'none'; // Hide the menu when the pointer is locked
+});
+controls.addEventListener('unlock', () => {
+  if (isGameRunning) pauseGame(); // Show the menu when the pointer is unlocked and the game is running
+});
 
 window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -310,6 +344,8 @@ function updatePlayerMovement(delta) {
 // Animation loop
 const clock = new three.Clock();
 function animate() {
+  if (paused) return; // Stop the loop if paused
+
   const delta = clock.getDelta();
   world.step(fixedTimeStep, delta, maxSubSteps);
 
