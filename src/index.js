@@ -4,10 +4,9 @@ import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockCont
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import * as CANNON from 'cannon-es';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
-import glslangModule from 'https://cdn.jsdelivr.net/npm/@webgpu/glslang@0.0.15/dist/web-devel/glslang.js';
+import glslangModule from '@webgpu/glslang/dist/web-devel/glslang.js';
 
-
-// Main variables
+// Основные переменные
 let isGameRunning = false;
 let paused = false;
 let menuVisible = true;
@@ -65,8 +64,10 @@ async function initWebGPU() {
   const adapter = await navigator.gpu.requestAdapter();
   const device = await adapter.requestDevice();
 
-  // Load GLSLang
-  const glslang = await glslangModule();
+  // Load GLSLang and specify the correct wasm path for GitHub Pages
+  const glslang = await glslangModule({
+    wasmPath: './wasm/glslang.wasm' // Correct relative path to the .wasm file
+  });
 
   // Initialize WebGPU Renderer
   const renderer = new WebGPURenderer({ device, glslang });
@@ -81,16 +82,16 @@ async function initWebGPU() {
 initWebGPU().then((renderer) => {
   if (!renderer) return;
 
-  // Scene and camera
+  // Сцена и камера
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
   camera.position.set(0, 1.8, 5);
 
-  // FPS counter
+  // Счетчик FPS
   const stats = new Stats();
   document.body.appendChild(stats.dom);
 
-  // Camera controls
+  // Контролы камеры
   const controls = new PointerLockControls(camera, document.body);
   document.body.addEventListener('click', () => {
     if (!isGameRunning) return;
@@ -122,7 +123,7 @@ initWebGPU().then((renderer) => {
   ]);
   scene.background = skyboxTexture;
 
-  // Physics world (Cannon.js)
+  // Мир физики (Cannon.js)
   const world = new CANNON.World();
   world.gravity.set(0, -9.82, 0);
   world.broadphase = new CANNON.NaiveBroadphase();
@@ -131,7 +132,7 @@ initWebGPU().then((renderer) => {
   const fixedTimeStep = 1 / 60;
   const maxSubSteps = 3;
 
-  // Ground
+  // Пол
   const textureLoader = new THREE.TextureLoader();
   const groundTexture = textureLoader.load('https://threejsfundamentals.org/threejs/resources/images/checker.png');
   groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
@@ -150,7 +151,7 @@ initWebGPU().then((renderer) => {
   groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
   world.addBody(groundBody);
 
-  // Wall
+  // Стены
   const wallTexture = textureLoader.load('https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/brick_wall_006/brick_wall_006_diff_2k.jpg');
   const wallMaterial = new THREE.MeshStandardMaterial({ map: wallTexture, metalness: 0.0, roughness: 0.8 });
 
@@ -166,7 +167,26 @@ initWebGPU().then((renderer) => {
   wall1Body.position.set(0, 2.5, -5);
   world.addBody(wall1Body);
 
-  // Cube with dynamic physics
+  // Освещение
+  const hemisphereLight = new THREE.HemisphereLight(0xddeeff, 0x0f0e0d, 1);
+  scene.add(hemisphereLight);
+
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  directionalLight.position.set(10, 20, 10);
+  directionalLight.castShadow = true;
+  scene.add(directionalLight);
+
+  // Зеркальная поверхность (отражения)
+  const mirror = new Reflector(new THREE.PlaneGeometry(10, 10), {
+    color: new THREE.Color(0x7f7f7f),
+    textureWidth: window.innerWidth * window.devicePixelRatio,
+    textureHeight: window.innerHeight * window.devicePixelRatio,
+  });
+  mirror.position.set(0, 5, -10);
+  mirror.rotation.y = Math.PI / 2;
+  scene.add(mirror);
+
+  // Объект куба с динамической физикой
   const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
   const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), cubeMaterial);
   cube.position.set(0, 1, 0);
@@ -180,7 +200,7 @@ initWebGPU().then((renderer) => {
   cubeBody.position.set(0, 1, 0);
   world.addBody(cubeBody);
 
-  // Sphere with dynamic physics
+  // Объект сферы с динамической физикой
   const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 32), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
   sphere.position.set(3, 1, 0);
   sphere.castShadow = true;
@@ -193,7 +213,7 @@ initWebGPU().then((renderer) => {
   sphereBody.position.set(3, 1, 0);
   world.addBody(sphereBody);
 
-  // Player physics
+  // Физика игрока
   const playerBody = new CANNON.Body({
     mass: 5,
     shape: new CANNON.Sphere(1),
