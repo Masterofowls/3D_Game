@@ -4,7 +4,8 @@ import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockCont
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import * as CANNON from 'cannon-es';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
-import glslangModule from '@webgpu/glslang/dist/web-devel/glslang.js';
+import glslangModule from 'https://cdn.jsdelivr.net/npm/@webgpu/glslang@0.0.15/dist/web-devel/glslang.js';
+
 
 // Main variables
 let isGameRunning = false;
