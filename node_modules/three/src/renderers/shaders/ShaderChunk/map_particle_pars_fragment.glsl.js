@@ -1,15 +1,7 @@
 export default /* glsl */`
-#if defined( USE_POINTS_UV )
+#if defined( USE_MAP ) || defined( USE_ALPHAMAP )
 
-	varying vec2 vUv;
-
-#else
-
-	#if defined( USE_MAP ) || defined( USE_ALPHAMAP )
-
-		uniform mat3 uvTransform;
-
-	#endif
+	uniform mat3 uvTransform;
 
 #endif
 

@@ -6,7 +6,7 @@ import { Color } from '../math/Color.js';
 
 class PolarGridHelper extends LineSegments {
 
-	constructor( radius = 10, sectors = 16, rings = 8, divisions = 64, color1 = 0x444444, color2 = 0x888888 ) {
+	constructor( radius = 10, radials = 16, circles = 8, divisions = 64, color1 = 0x444444, color2 = 0x888888 ) {
 
 		color1 = new Color( color1 );
 		color2 = new Color( color2 );
@@ -14,36 +14,32 @@ class PolarGridHelper extends LineSegments {
 		const vertices = [];
 		const colors = [];
 
-		// create the sectors
+		// create the radials
 
-		if ( sectors > 1 ) {
+		for ( let i = 0; i <= radials; i ++ ) {
 
-			for ( let i = 0; i < sectors; i ++ ) {
+			const v = ( i / radials ) * ( Math.PI * 2 );
 
-				const v = ( i / sectors ) * ( Math.PI * 2 );
+			const x = Math.sin( v ) * radius;
+			const z = Math.cos( v ) * radius;
 
-				const x = Math.sin( v ) * radius;
-				const z = Math.cos( v ) * radius;
-
-				vertices.push( 0, 0, 0 );
-				vertices.push( x, 0, z );
-
-				const color = ( i & 1 ) ? color1 : color2;
-
-				colors.push( color.r, color.g, color.b );
-				colors.push( color.r, color.g, color.b );
-
-			}
-
-		}
-
-		// create the rings
-
-		for ( let i = 0; i < rings; i ++ ) {
+			vertices.push( 0, 0, 0 );
+			vertices.push( x, 0, z );
 
 			const color = ( i & 1 ) ? color1 : color2;
 
-			const r = radius - ( radius / rings * i );
+			colors.push( color.r, color.g, color.b );
+			colors.push( color.r, color.g, color.b );
+
+		}
+
+		// create the circles
+
+		for ( let i = 0; i <= circles; i ++ ) {
+
+			const color = ( i & 1 ) ? color1 : color2;
+
+			const r = radius - ( radius / circles * i );
 
 			for ( let j = 0; j < divisions; j ++ ) {
 
@@ -80,13 +76,6 @@ class PolarGridHelper extends LineSegments {
 		super( geometry, material );
 
 		this.type = 'PolarGridHelper';
-
-	}
-
-	dispose() {
-
-		this.geometry.dispose();
-		this.material.dispose();
 
 	}
 

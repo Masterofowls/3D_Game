@@ -47,9 +47,8 @@ class SkeletonHelper extends LineSegments {
 
 		super( geometry, material );
 
-		this.isSkeletonHelper = true;
-
 		this.type = 'SkeletonHelper';
+		this.isSkeletonHelper = true;
 
 		this.root = object;
 		this.bones = bones;
@@ -94,13 +93,6 @@ class SkeletonHelper extends LineSegments {
 
 	}
 
-	dispose() {
-
-		this.geometry.dispose();
-		this.material.dispose();
-
-	}
-
 }
 
 
@@ -108,7 +100,7 @@ function getBoneList( object ) {
 
 	const boneList = [];
 
-	if ( object.isBone === true ) {
+	if ( object && object.isBone ) {
 
 		boneList.push( object );
 

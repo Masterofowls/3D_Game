@@ -11,8 +11,6 @@ class LineSegments extends Line {
 
 		super( geometry, material );
 
-		this.isLineSegments = true;
-
 		this.type = 'LineSegments';
 
 	}
@@ -21,28 +19,36 @@ class LineSegments extends Line {
 
 		const geometry = this.geometry;
 
-		// we assume non-indexed geometry
+		if ( geometry.isBufferGeometry ) {
 
-		if ( geometry.index === null ) {
+			// we assume non-indexed geometry
 
-			const positionAttribute = geometry.attributes.position;
-			const lineDistances = [];
+			if ( geometry.index === null ) {
 
-			for ( let i = 0, l = positionAttribute.count; i < l; i += 2 ) {
+				const positionAttribute = geometry.attributes.position;
+				const lineDistances = [];
 
-				_start.fromBufferAttribute( positionAttribute, i );
-				_end.fromBufferAttribute( positionAttribute, i + 1 );
+				for ( let i = 0, l = positionAttribute.count; i < l; i += 2 ) {
 
-				lineDistances[ i ] = ( i === 0 ) ? 0 : lineDistances[ i - 1 ];
-				lineDistances[ i + 1 ] = lineDistances[ i ] + _start.distanceTo( _end );
+					_start.fromBufferAttribute( positionAttribute, i );
+					_end.fromBufferAttribute( positionAttribute, i + 1 );
+
+					lineDistances[ i ] = ( i === 0 ) ? 0 : lineDistances[ i - 1 ];
+					lineDistances[ i + 1 ] = lineDistances[ i ] + _start.distanceTo( _end );
+
+				}
+
+				geometry.setAttribute( 'lineDistance', new Float32BufferAttribute( lineDistances, 1 ) );
+
+			} else {
+
+				console.warn( 'THREE.LineSegments.computeLineDistances(): Computation only possible with non-indexed BufferGeometry.' );
 
 			}
 
-			geometry.setAttribute( 'lineDistance', new Float32BufferAttribute( lineDistances, 1 ) );
+		} else if ( geometry.isGeometry ) {
 
-		} else {
-
-			console.warn( 'THREE.LineSegments.computeLineDistances(): Computation only possible with non-indexed BufferGeometry.' );
+			console.error( 'THREE.LineSegments.computeLineDistances() no longer supports THREE.Geometry. Use THREE.BufferGeometry instead.' );
 
 		}
 
@@ -51,5 +57,7 @@ class LineSegments extends Line {
 	}
 
 }
+
+LineSegments.prototype.isLineSegments = true;
 
 export { LineSegments };

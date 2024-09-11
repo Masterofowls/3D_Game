@@ -11,7 +11,6 @@ class Path extends CurvePath {
 	constructor( points ) {
 
 		super();
-
 		this.type = 'Path';
 
 		this.currentPoint = new Vector2();

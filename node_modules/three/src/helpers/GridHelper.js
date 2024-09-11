@@ -43,13 +43,6 @@ class GridHelper extends LineSegments {
 
 	}
 
-	dispose() {
-
-		this.geometry.dispose();
-		this.material.dispose();
-
-	}
-
 }
 
 

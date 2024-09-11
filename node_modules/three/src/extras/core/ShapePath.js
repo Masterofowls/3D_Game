@@ -58,7 +58,7 @@ class ShapePath {
 
 	}
 
-	toShapes( isCCW ) {
+	toShapes( isCCW, noHoles ) {
 
 		function toShapesNoHoles( inSubpaths ) {
 
@@ -144,6 +144,9 @@ class ShapePath {
 		const subPaths = this.subPaths;
 		if ( subPaths.length === 0 ) return [];
 
+		if ( noHoles === true )	return	toShapesNoHoles( subPaths );
+
+
 		let solid, tmpPath, tmpShape;
 		const shapes = [];
 
@@ -207,7 +210,7 @@ class ShapePath {
 		if ( newShapes.length > 1 ) {
 
 			let ambiguous = false;
-			let toChange = 0;
+			const toChange = [];
 
 			for ( let sIdx = 0, sLen = newShapes.length; sIdx < sLen; sIdx ++ ) {
 
@@ -228,8 +231,7 @@ class ShapePath {
 
 						if ( isPointInsidePolygon( ho.p, newShapes[ s2Idx ].p ) ) {
 
-							if ( sIdx !== s2Idx )	toChange ++;
-
+							if ( sIdx !== s2Idx )	toChange.push( { froms: sIdx, tos: s2Idx, hole: hIdx } );
 							if ( hole_unassigned ) {
 
 								hole_unassigned = false;
@@ -254,10 +256,12 @@ class ShapePath {
 				}
 
 			}
+			// console.log("ambiguous: ", ambiguous);
 
-			if ( toChange > 0 && ambiguous === false ) {
+			if ( toChange.length > 0 ) {
 
-				newShapeHoles = betterShapeHoles;
+				// console.log("to change: ", toChange);
+				if ( ! ambiguous )	newShapeHoles = betterShapeHoles;
 
 			}
 

@@ -340,15 +340,14 @@ class AnimationAction {
 			const timeRunning = ( time - startTime ) * timeDirection;
 			if ( timeRunning < 0 || timeDirection === 0 ) {
 
-				deltaTime = 0;
-
-			} else {
-
-
-				this._startTime = null; // unschedule
-				deltaTime = timeDirection * timeRunning;
+				return; // yet to come / don't decide when delta = 0
 
 			}
+
+			// start
+
+			this._startTime = null; // unschedule
+			deltaTime = timeDirection * timeRunning;
 
 		}
 
