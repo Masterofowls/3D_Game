@@ -5,9 +5,14 @@
   "main": "index.js",
   "scripts": {
     "start": "webpack serve --open",
-    "build": "webpack"
+    "build": "webpack",
+    "asbuild:debug": "asc assembly/index.ts --target debug",
+    "asbuild:release": "asc assembly/index.ts --target release",
+    "asbuild": "npm run asbuild:debug && npm run asbuild:release",
+    "test": "node tests"
   },
   "dependencies": {
+    "@webgpu/glslang": "^0.0.15",
     "cannon-es": "^0.18.0",
     "style-loader": "^4.0.0",
     "three": "^0.135.0"
@@ -19,8 +24,16 @@
     "gh-pages": "^6.1.1",
     "webpack": "^5.94.0",
     "webpack-cli": "^4.10.0",
-    "webpack-dev-server": "^4.15.2"
+    "webpack-dev-server": "^4.15.2",
+    "assemblyscript": "^0.27.29"
   },
   "author": "Your Name",
-  "license": "ISC"
+  "license": "ISC",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./build/release.js",
+      "types": "./build/release.d.ts"
+    }
+  }
 }
