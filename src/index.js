@@ -17,7 +17,7 @@ const pickupDistance = 2.5;
 
 document.addEventListener('DOMContentLoaded', function () {
   const mainButton = document.getElementById('mainButton');
-  
+
   if (mainButton) {
     mainButton.onclick = () => {
       if (isGameRunning) {
@@ -140,6 +140,20 @@ const cubeBody = new CANNON.Body({
 cubeBody.position.set(0, 1, 0);
 world.addBody(cubeBody);
 
+// Sphere object with dynamic physics
+const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 32), sphereMaterial);
+sphere.position.set(3, 1, 0);
+sphere.castShadow = true;
+scene.add(sphere);
+
+const sphereBody = new CANNON.Body({
+  mass: 2,
+  shape: new CANNON.Sphere(0.5),
+});
+sphereBody.position.set(3, 1, 0);
+world.addBody(sphereBody);
+
 // Input controls
 document.addEventListener('keydown', (event) => {
   switch (event.code) {
@@ -150,7 +164,7 @@ document.addEventListener('keydown', (event) => {
     case 'ControlLeft': isSprinting = true; break;
     case 'Space':
       if (canJump) {
-        velocity.y = 10; // Simulate jump via velocity
+        velocity.y = 10;
         canJump = false;
       }
       break;
@@ -167,7 +181,64 @@ document.addEventListener('keyup', (event) => {
   }
 });
 
-// Movement logic
+// Picking up objects and making them kinematic
+function pickUpObject() {
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+  const intersects = raycaster.intersectObjects([cube, sphere]);
+
+  if (intersects.length > 0) {
+    const intersectedObject = intersects[0].object;
+    let body;
+    if (intersectedObject === cube) {
+      body = cubeBody;
+    } else if (intersectedObject === sphere) {
+      body = sphereBody;
+    }
+
+    const distance = camera.position.distanceTo(intersectedObject.position);
+
+    if (distance <= pickupDistance) {
+      heldObject = body;
+      heldObject.angularVelocity.set(0, 0, 0);
+      heldObject.angularDamping = 1;
+
+      // Disable gravity and set kinematic so the object doesn't affect the player
+      heldObject.type = CANNON.Body.KINEMATIC;
+      heldObject.allowSleep = false;
+      heldObject.gravityScale = 0;
+
+      // Adjust object position smoothly to prevent passing through walls
+      heldObject.collisionResponse = false;
+    }
+  }
+}
+
+// Release held object and make it dynamic again
+function releaseObject() {
+  if (heldObject) {
+    heldObject.type = CANNON.Body.DYNAMIC;
+    heldObject.gravityScale = 1;
+    heldObject.angularDamping = 0.1;
+    heldObject.collisionResponse = true;
+    heldObject = null;
+  }
+}
+
+// Throw object with velocity
+function throwObject() {
+  if (heldObject) {
+    const throwVelocity = new CANNON.Vec3();
+    const cameraDirection = new THREE.Vector3();
+    camera.getWorldDirection(cameraDirection);
+    throwVelocity.set(cameraDirection.x * 20, cameraDirection.y * 20, cameraDirection.z * 20);
+
+    heldObject.velocity.copy(throwVelocity);
+    releaseObject();
+  }
+}
+
+// Movement logic and restrictions
 function updatePlayerMovement(delta) {
   velocity.set(0, 0, 0);
   const moveSpeed = isSprinting ? baseMoveSpeed * sprintMultiplier : baseMoveSpeed;
@@ -183,7 +254,7 @@ function updatePlayerMovement(delta) {
   if (moveLeft) velocity.add(right.multiplyScalar(-moveSpeed * delta));
   if (moveRight) velocity.add(right.multiplyScalar(moveSpeed * delta));
 
-  camera.position.add(velocity); // Move camera directly
+  camera.position.add(velocity);
 }
 
 // Animation loop
@@ -199,7 +270,11 @@ function animate() {
   cube.position.copy(cubeBody.position);
   cube.quaternion.copy(cubeBody.quaternion);
 
+  sphere.position.copy(sphereBody.position);
+  sphere.quaternion.copy(sphereBody.quaternion);
+
   stats.update();
+
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
