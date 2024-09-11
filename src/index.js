@@ -1,10 +1,8 @@
 import * as THREE from 'three';
-import WebGPURenderer from './WebGPURenderer.js';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import * as CANNON from 'cannon-es';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
-import glslangModule from '@webgpu/glslang/dist/web-devel/glslang.js';
 
 // Основные переменные
 let isGameRunning = false;
@@ -53,26 +51,33 @@ function pauseGame() {
   toggleMenu(true);
 }
 
-// WebGPU Initialization
+// WebGPU Initialization with WGSL (No GLSLang required)
 async function initWebGPU() {
   if (!navigator.gpu) {
     console.error("WebGPU is not supported on this browser.");
     return;
   }
 
-  // Request the WebGPU adapter and device
   const adapter = await navigator.gpu.requestAdapter();
   const device = await adapter.requestDevice();
 
-  // Load GLSLang and specify the correct wasm path for GitHub Pages
-  const glslang = await glslangModule({
-    wasmPath: './wasm/glslang.wasm' // Correct relative path to the .wasm file
+  const shaderModule = device.createShaderModule({
+    code: `
+      @vertex
+      fn vs_main(@location(0) inPos: vec4<f32>) -> @builtin(position) vec4<f32> {
+          return inPos;
+      }
+
+      @fragment
+      fn fs_main() -> @location(0) vec4<f32> {
+          return vec4<f32>(0.0, 1.0, 0.0, 1.0);
+      }
+    `,
   });
 
-  // Initialize WebGPU Renderer
-  const renderer = new WebGPURenderer({ device, glslang });
+  // Initialize WebGPU Renderer (without GLSLang)
+  const renderer = new THREE.WebGLRenderer(); // Note: Replace WebGPURenderer with standard WebGLRenderer
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(window.devicePixelRatio);
   document.body.appendChild(renderer.domElement);
 
   return renderer;
