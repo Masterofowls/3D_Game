@@ -7,6 +7,8 @@ class Light extends Object3D {
 
 		super();
 
+		this.isLight = true;
+
 		this.type = 'Light';
 
 		this.color = new Color( color );
@@ -20,9 +22,9 @@ class Light extends Object3D {
 
 	}
 
-	copy( source ) {
+	copy( source, recursive ) {
 
-		super.copy( source );
+		super.copy( source, recursive );
 
 		this.color.copy( source.color );
 		this.intensity = source.intensity;
@@ -46,13 +48,12 @@ class Light extends Object3D {
 		if ( this.penumbra !== undefined ) data.object.penumbra = this.penumbra;
 
 		if ( this.shadow !== undefined ) data.object.shadow = this.shadow.toJSON();
+		if ( this.target !== undefined ) data.object.target = this.target.uuid;
 
 		return data;
 
 	}
 
 }
-
-Light.prototype.isLight = true;
 
 export { Light };

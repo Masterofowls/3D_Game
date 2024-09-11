@@ -14,7 +14,7 @@
   "dependencies": {
     "@webgpu/glslang": "^0.0.15",
     "cannon-es": "^0.18.0",
-    "three": "^0.135.0"
+    "three": "^0.168.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

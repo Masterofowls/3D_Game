@@ -4,42 +4,71 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>3D Game Scene</title>
-</head>
   <style>
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
     #menu {
-      display: none;
+      display: block; /* Show menu by default */
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
+      background-color: rgba(0, 0, 0, 0.8);
+      text-align: center;
+      font-family: 'Arial', sans-serif;
     }
     #menu h1 {
-      color: white;
-      text-align: center;
-      margin-top: 20%;
+      color: #fff;
+      margin-top: 5%;
+      font-size: 3rem;
     }
     #menu button {
       display: block;
       margin: 20px auto;
       padding: 10px 20px;
-      font-size: 20px;
+      font-size: 1.5rem;
+      color: #fff;
+      background-color: #007bff;
+      border: none;
       cursor: pointer;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+    #menu button:hover {
+      background-color: #0056b3;
+    }
+    #menu p {
+      color: #fff;
+      font-size: 1.2rem;
+      max-width: 600px;
+      margin: 20px auto;
+      text-align: left;
+      line-height: 1.5;
+    }
+    #clues {
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 5%;
     }
   </style>
+</head>
 <body>
   <div id="menu">
     <h1>Game Menu</h1>
-    <button id="resumeButton">Resume Game</button>
+    <button id="mainButton">Start Game</button>
+
+    <div id="clues">
+      <h2 style="color: #fff;">Clues:</h2>
+      <p><strong>Move:</strong> W, A, S, D</p>
+      <p><strong>Jump:</strong> Spacebar</p>
+      <p><strong>Sprint:</strong> Hold Left Control</p>
+      <p><strong>Pick up object:</strong> Press E when near an object</p>
+      <p><strong>Throw object:</strong> Press F while holding an object</p>
+    </div>
   </div>
-  <button id="mainButton">Start Game</button>
-<div id="menu" style="display:none">Paused</div>
 
-<link rel="icon" href="data:,">
-
-
+  <script src="/dist/bundle.js" defer></script>
 </body>
 </html>

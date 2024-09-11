@@ -7,11 +7,11 @@ const __dirname = path.dirname(__filename);
 
 export default {
   mode: 'development',
-  entry: '/src/index.js',  // Adjust as needed
+  entry: './src/index.js',
   output: {
     filename: 'bundle.js',
     path: path.resolve(__dirname, 'dist'),
-    clean: true,
+    publicPath: '/',
   },
   devServer: {
     static: {
@@ -23,7 +23,7 @@ export default {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: './src/index.html',  // Make sure this points to your HTML file
+      template: './src/index.html',
       filename: 'index.html',
     }),
   ],
@@ -38,7 +38,7 @@ export default {
       },
       {
         test: /\.html$/,
-        use: ['html-loader'],  // Add this rule to handle HTML files
+        use: ['html-loader'],
       },
     ],
   },

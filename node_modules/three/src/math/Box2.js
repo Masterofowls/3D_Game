@@ -6,6 +6,8 @@ class Box2 {
 
 	constructor( min = new Vector2( + Infinity, + Infinity ), max = new Vector2( - Infinity, - Infinity ) ) {
 
+		this.isBox2 = true;
+
 		this.min = min;
 		this.max = max;
 
@@ -117,8 +119,8 @@ class Box2 {
 
 	containsPoint( point ) {
 
-		return point.x < this.min.x || point.x > this.max.x ||
-			point.y < this.min.y || point.y > this.max.y ? false : true;
+		return point.x >= this.min.x && point.x <= this.max.x &&
+			point.y >= this.min.y && point.y <= this.max.y;
 
 	}
 
@@ -145,8 +147,8 @@ class Box2 {
 
 		// using 4 splitting planes to rule out intersections
 
-		return box.max.x < this.min.x || box.min.x > this.max.x ||
-			box.max.y < this.min.y || box.min.y > this.max.y ? false : true;
+		return box.max.x >= this.min.x && box.min.x <= this.max.x &&
+			box.max.y >= this.min.y && box.min.y <= this.max.y;
 
 	}
 
@@ -158,8 +160,7 @@ class Box2 {
 
 	distanceToPoint( point ) {
 
-		const clampedPoint = _vector.copy( point ).clamp( this.min, this.max );
-		return clampedPoint.sub( point ).length();
+		return this.clampPoint( point, _vector ).distanceTo( point );
 
 	}
 
@@ -167,6 +168,8 @@ class Box2 {
 
 		this.min.max( box.min );
 		this.max.min( box.max );
+
+		if ( this.isEmpty() ) this.makeEmpty();
 
 		return this;
 
@@ -197,7 +200,5 @@ class Box2 {
 	}
 
 }
-
-Box2.prototype.isBox2 = true;
 
 export { Box2 };

@@ -25,15 +25,18 @@ class StereoEffect {
 
 		this.render = function ( scene, camera ) {
 
-			scene.updateMatrixWorld();
+			if ( scene.matrixWorldAutoUpdate === true ) scene.updateMatrixWorld();
 
-			if ( camera.parent === null ) camera.updateMatrixWorld();
+			if ( camera.parent === null && camera.matrixWorldAutoUpdate === true ) camera.updateMatrixWorld();
 
 			_stereo.update( camera );
 
+			const currentAutoClear = renderer.autoClear;
 			renderer.getSize( size );
 
-			if ( renderer.autoClear ) renderer.clear();
+			renderer.autoClear = false;
+			renderer.clear();
+
 			renderer.setScissorTest( true );
 
 			renderer.setScissor( 0, 0, size.width / 2, size.height );
@@ -45,6 +48,8 @@ class StereoEffect {
 			renderer.render( scene, _stereo.cameraR );
 
 			renderer.setScissorTest( false );
+
+			renderer.autoClear = currentAutoClear;
 
 		};
 
