@@ -9,7 +9,8 @@
     "asbuild:debug": "asc assembly/index.ts --target debug",
     "asbuild:release": "asc assembly/index.ts --target release",
     "asbuild": "npm run asbuild:debug && npm run asbuild:release",
-    "test": "node tests"
+    "test": "node tests",
+    "deploy": "npm run build && gh-pages -d dist"
   },
   "dependencies": {
     "@webgpu/glslang": "^0.0.15",
