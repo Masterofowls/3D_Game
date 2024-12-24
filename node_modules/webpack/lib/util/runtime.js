@@ -618,6 +618,9 @@ class RuntimeSpecMap {
 		}
 	}
 
+	/**
+	 * @returns {IterableIterator<T>} values
+	 */
 	values() {
 		switch (this._mode) {
 			case 0:
@@ -630,7 +633,10 @@ class RuntimeSpecMap {
 	}
 
 	get size() {
-		if (/** @type {number} */ (this._mode) <= 1) return this._mode;
+		if (/** @type {number} */ (this._mode) <= 1) {
+			return /** @type {number} */ (this._mode);
+		}
+
 		return /** @type {Map<string, T>} */ (this._map).size;
 	}
 }
@@ -666,6 +672,9 @@ class RuntimeSpecSet {
 		return this._map.has(getRuntimeKey(runtime));
 	}
 
+	/**
+	 * @returns {IterableIterator<RuntimeSpec>} iterable iterator
+	 */
 	[Symbol.iterator]() {
 		return this._map.values();
 	}
